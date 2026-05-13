@@ -8,12 +8,13 @@ from app.model import (
     predict_category,
     train_model,
 )
+from app.supabase_client import update_expense_confirmation
 
 
 app = FastAPI(
     title="BotFinanceku AI",
     description="AI mini untuk memprediksi kategori pengeluaran.",
-    version="0.2.0",
+    version="0.3.0",
 )
 
 
@@ -26,6 +27,13 @@ class FeedbackRequest(BaseModel):
     subject: str = Field(..., min_length=1, examples=["servis kipas"])
     amount: int | None = Field(default=None, examples=[25000])
     correct_category: str = Field(..., examples=["operasional"])
+
+
+class ConfirmRequest(BaseModel):
+    expense_id: str = Field(..., min_length=1)
+    subject: str = Field(..., min_length=1)
+    amount: int
+    correct_category: str = Field(..., examples=["jajan"])
 
 
 @app.get("/")
@@ -70,6 +78,35 @@ def feedback(payload: FeedbackRequest):
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
+
+
+@app.post("/confirm")
+def confirm(payload: ConfirmRequest):
+    if payload.correct_category not in CATEGORIES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Kategori tidak valid: {payload.correct_category}",
+        )
+
+    try:
+        updated_row = update_expense_confirmation(
+            expense_id=payload.expense_id,
+            category=payload.correct_category,
+        )
+
+        feedback_result = add_feedback(
+            subject=payload.subject,
+            amount=payload.amount,
+            correct_category=payload.correct_category,
+        )
+
+        return {
+            "message": "Transaksi dikonfirmasi dan AI dilatih.",
+            "updated_row": updated_row,
+            "feedback_result": feedback_result,
+        }
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=str(error))
 
 
 @app.post("/train")
