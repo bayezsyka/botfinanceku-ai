@@ -26,10 +26,11 @@ def update_expense_confirmation(expense_id: str, category: str):
 
     params = {
         "id": f"eq.{expense_id}",
-        "select": "id,subject,amount,confirmed_category,is_confirmed",
+        "select": "id,subject,amount,category,confirmed_category,is_confirmed",
     }
 
     payload = {
+        "category": category,
         "confirmed_category": category,
         "is_confirmed": True,
     }

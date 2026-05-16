@@ -7,6 +7,7 @@ from app.model import (
     add_feedback,
     predict_category,
     train_model,
+    normalize_category,
 )
 from app.supabase_client import update_expense_confirmation
 
@@ -19,14 +20,14 @@ app = FastAPI(
 
 
 class PredictRequest(BaseModel):
-    subject: str = Field(..., min_length=1, examples=["kopken"])
-    amount: int | None = Field(default=None, examples=[19000])
+    subject: str = Field(..., min_length=1, examples=["beli kopi"])
+    amount: int | None = Field(default=None, examples=[18000])
 
 
 class FeedbackRequest(BaseModel):
-    subject: str = Field(..., min_length=1, examples=["servis kipas"])
-    amount: int | None = Field(default=None, examples=[25000])
-    correct_category: str = Field(..., examples=["operasional"])
+    subject: str = Field(..., min_length=1, examples=["servis motor"])
+    amount: int | None = Field(default=None, examples=[50000])
+    correct_category: str = Field(..., examples=["transportasi"])
 
 
 class ConfirmRequest(BaseModel):
@@ -82,7 +83,8 @@ def feedback(payload: FeedbackRequest):
 
 @app.post("/confirm")
 def confirm(payload: ConfirmRequest):
-    if payload.correct_category not in CATEGORIES:
+    norm_category = normalize_category(payload.correct_category)
+    if norm_category not in CATEGORIES:
         raise HTTPException(
             status_code=400,
             detail=f"Kategori tidak valid: {payload.correct_category}",
@@ -91,13 +93,13 @@ def confirm(payload: ConfirmRequest):
     try:
         updated_row = update_expense_confirmation(
             expense_id=payload.expense_id,
-            category=payload.correct_category,
+            category=norm_category,
         )
 
         feedback_result = add_feedback(
             subject=payload.subject,
             amount=payload.amount,
-            correct_category=payload.correct_category,
+            correct_category=norm_category,
         )
 
         return {
